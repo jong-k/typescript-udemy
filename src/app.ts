@@ -1,225 +1,149 @@
-// 1. 인터섹션 타입
-// 타입 방식
-type Admin = {
-  name: string;
-  privileges: string[];
-};
-
-type Employee = {
-  name: string;
-  startDate: Date;
+// 2. 제네릭 함수 생성하기
+function merge(objA: object, objB: object) {
+  return Object.assign(objA, objB); // assign 함수로 두 객체를 병합
 }
-// & 연산자로 이종 타입을 결합 -> 합집합
-// 원래 인터섹션의 사전적 의미는 교집합이나, 타입스크립트에서는 합집합으로 쓰임
-// 유니온의 사전적 의미가 합집합이나, 유니온도 합집합 개념은 아니고 택 1의 느낌
+// console.log(merge({name: 'King'}, {age: 30})); // {name: 'King', age: 30}
+const mergedObj = merge({name: 'King'}, {age: 30});
+// console.log(mergedObj.name); 에러 발생 : 접근 불가 -> 어떤 프로퍼티 타입이 있는지 정확히 몰라서
+// mergedObj 뒤에 타입 캐스팅으로 as {name: string,  age: number} 라고 붙여주면 가능하지만, 번거로움
 
-// 각각 따로 만들기 번거로우니 인터섹션 타입으로 결합
-type ElevatedEmployee = Admin & Employee;
-
-const e1: ElevatedEmployee = {
-  name: 'Hank',
-  privileges: ['create-server'],
-  startDate: new Date()
+// 이를 해결하기 위해 제네릭을 사용
+// T 대신 다른걸 써도 상관없으나 관례상 사용
+function merge1<T, U>(objA: T, objB: U) {
+  return Object.assign(objA, objB); // T & U (인터섹션)를 반환한다고 추론 -> 서로 다른 타입이 될 수도 있음을 TS에게 알려줌
 }
+const mergedObj1 = merge1({name: 'King'}, {age: 30});
+console.log(mergedObj1.age); // 정상적으로 잘 출력됨
 
-// 인터페이스 방식 -> 코드가 더 길어져서 타입 방식이 더 선호됨
-interface NewAdmin {
-  name: string;
-  privileges: string[];
+const mergedObj2 = merge1({name: 'son', hobbies: ['soccer']}, {score: 100});
+console.log(mergedObj2.hobbies); // 정상적으로 잘 출력됨
+
+// 3. 제약 조건 작업하기
+// mergedObj2 에서 {score: 100} 대신 숫자 100만 전달하면, 에러 발생없이 조용히 실패한다
+// 이러한 실수에 대비해, 제네릭에서는 타입에 제약 조건을 부여하여 에러를 방지할 수 있다
+
+// T와 U는 어떤 구조의 객체인지는 상관없으나, 일단 객체이어야 함
+// extends 뒤에는 유니온 타입 및 커스텀 타입을 포함해 어떤 타입이든 올 수 있다
+function newMerge<T extends object, U extends object>(objA: T, objB: U) {
+  return Object.assign(objA, objB);
 }
+// 아래처럼 U 타입 위치에 그냥 숫자가 오면 IDE에서 에러 발생 (30을 객체 타입에 할당 불가)
+// const newMergedObj = newMerge({name: 'son', hobbies: ['soccer']}, 100);
 
-interface NewEmployee {
-  name: string;
-  startDate: Date;
-}
-
-interface NewElevatedEmployee extends NewAdmin, NewEmployee {}
-
-const e2: ElevatedEmployee = {
-  name: 'Hawk',
-  privileges: ['create-server'],
-  startDate: new Date()
+// 4. 다른 제네릭 함수
+// 인터페이스(또는 타입도 가능)를 통해 타입을 미리 설정
+interface Lengthy {
+  length: number;
 }
 
-// 유니언 타입 ( | ) : 타입간의 공통점이 있는 타입
-type Combinable = string | number;
-type Numeric = number | boolean;
-
-type Universal = Combinable & Numeric;
-
-// 2. 타입 가드
-function add(a: Combinable, b: Combinable) {
-  if (typeof a === 'string' || typeof b === 'string') { // 타입 가드 구문
-    return a.toString() + b.toString();
+function countAndDescribe<T extends Lengthy>(element: T): [T, string] {
+  let descriptionText = 'Got no value';
+  if (element.length === 1) {
+    descriptionText = 'Got 1 element.';
+  } else if (element.length > 1) {
+    descriptionText = 'Got ' + element.length + ' elements.';
   }
-  return a + b;
+  return [element, descriptionText];
 }
 
-type UnknownEmployee = Employee | Admin;
+console.log(countAndDescribe('Hi There!'));
+console.log(countAndDescribe(['no more candy', 'no more sugar']));
 
-function printEmployeeInformation(emp: UnknownEmployee) {
-  console.log('Name: '  + emp.name);
-  // console.log('Privileges: ' + emp.privileges); -> 유니언 타입에서는 에러 발생
-  // in 연산자로 프로퍼티가 있는지 검사하는 타입 가드
-  if ('privileges' in emp) console.log('Privileges: ' + emp.privileges);
-  if ('startDate' in emp) console.log('Start Date: ' + emp.startDate);
+// 5. keyof 제약조건
+// 문자 그대로 extends 하는 제네릭 타입이 keyof 뒤에 오는 제네릭 타입의 key임을 명시
+// U extends keyof T 같은 패턴으로 사용되어, 매개변수가 (객체:T, 객체의 키값:U) 형태일때 유용하게 사용
+function extractAndConvert<T extends object, U extends keyof T>(obj: T, key: U) {
+  return obj[key]; // 실제로 이 key가 obj에 있는지 알 수 없기 때문에 에러 발생
 }
 
-printEmployeeInformation(e1);
+console.log(extractAndConvert({name: 'God'}, 'name')); // God
 
-// 클래스에서의 타입 가드
-class Car {
-  drive() {
-    console.log('driving...');
-  }
-}
-
-class Truck {
-  drive() {
-    console.log('driving a truck...');
+// 6. 제네릭 클래스
+// 클래스에서도 제네릭을 사용할 수 있음
+// 클래스 이름 뒤에 <T>가 위치
+// 클래스에서 설계해둔 제네릭으로 각 인스턴스에서 다양한 타입을 사용 가능
+class DataStorage<T> {
+  private data: T[] = [];
+  
+  addItem(item: T) {
+    this.data.push(item);
   }
   
-  loadCargo(amount: number) {
-    console.log('loading cargo... ' + amount)
+  removeItem(item: T) {
+    if (this.data.indexOf(item) === -1) return; // 객체에 대해서는 작동 X
+    this.data.splice(this.data.indexOf(item), 1); // 객체의 경우 인덱스 못찾아서 -1 출력
+  }
+  
+  getItems() {
+    return [...this.data];
   }
 }
 
-type Vehicle = Car | Truck;
-const v1 = new Car();
-const v2 = new Truck();
+const textStorage = new DataStorage<string>();
+// textStorage.addItem(10); 에러 발생 -> 숫자
+textStorage.addItem('coffee');
+textStorage.addItem('icecream');
+textStorage.removeItem('icecream'); // ['coffee']
 
-function useVehicle(vehicle: Vehicle) {
-  vehicle.drive();
-  // if ('loadCargo' in vehicle) vehicle.loadCargo(1000); // 대신 instanceof 연산자 써도 됨
-  if (vehicle instanceof Truck) vehicle.loadCargo(1000);
+const numberStorage = new DataStorage<number>();
+numberStorage.addItem(10);
+numberStorage.addItem(100);
+numberStorage.removeItem(10);
+console.log(numberStorage.getItems()); // [100]
+
+// 아래 코드는 제약조건을 추가하고나서부터 에러 발생
+// const objectStorage = new DataStorage<object>();
+// objectStorage.addItem({name: 'diablo'});
+// objectStorage.addItem({name: 'baal'});
+// objectStorage.removeItem({name: 'diablo'}); // 그대로 배열에 {name: 'diablo'} 남아있음 -> 객체의 경우 인덱스로 참조 불가
+// console.log(objectStorage.getItems());
+
+//  7. 제네릭 유틸리티 타입
+// 7-1. Partial 타입 : T의 모든 프로퍼티를 옵셔널하게 만듬
+interface CourseGoal { // 이 인터페이스는 아래에서 Partial 타입이 되어 옵셔널하게 됨
+  title: string;
+  description: string;
+  date: Date; // Date 타입은 대문자!
 }
 
-useVehicle(v1);
-useVehicle(v2);
-
-// 3. 구별된 유니언
-interface Bird {
-  type: 'bird'; // 구별된 유니언 -> 리터럴 타입인 type을 생성
-  flyingSpeed: number;
+function createCourseGoal(title: string,  description: string,  date: Date): CourseGoal {
+  let courseGoal: Partial<CourseGoal> = {}; // 객체가 courseGoal이 될 객체임을 알려줌
+  // 즉, courseGoal이 CourseGoal의 부분집합이 될 것임
+  courseGoal.title = title;
+  courseGoal.description = description;
+  return courseGoal as CourseGoal;
 }
 
-interface Horse {
-  type: 'horse'; // 구별된 유니언 -> 리터럴 타입인 type을 생성
-  runningSpeed: number;
-}
+// 7-2. Readonly
+const names: Readonly<string[]> = ['Max', 'Tom'];
+// names.push('Ron'); 읽기 전용이므로 변경하려고 하면 에러 발생
 
-type Animal = Bird | Horse; // 유니언 타입 생성
+// Partial과 Readonly 타입 이외에도 많은 유틸리티 타입이 존재
 
-function moveAnimal(animal: Animal)  {
-  // if ('flyingSpeed' in animal) console.log('Moving with speed: ' + animal.flyingSpeed);
-  // if ('runningSpeed' in animal) console.log('Moving with speed: ' + animal.runningSpeed);
-  // 동물이 추가될 수록 타입 가드를 추가해야 하는 수고로움이 커짐
-  // 또는 오타 발생 가능
-  // 구별된 유니언 활용! -> 객체마다 리터럴 타입인 type을 생성
-  let speed;
-  if (animal.type === 'bird') speed =  animal.flyingSpeed;
-  if (animal.type === 'horse') speed =  animal.runningSpeed;
-  console.log('Moving at speed: ' + speed);
-}
+// 8. 제네릭 타입 vs 유니온 타입
+// 제네릭 클래스를 똑같이 가져와서 유니온 타입으로 변경
 
-moveAnimal({type: 'bird', flyingSpeed: 100});
-// moveAnimal({type: 'bird', runningSpeed: 100}); 에러 발생
-
-// 구별된 유니언은 타입 검사를 쉽게 해주는 일종의 패턴이다
-// 인터페이스는 객체와 비슷한 것 같다! -> 함수 정의할 때 매개변수로 쓸 수 있음 (값은 인수로 입력해야함, 인터페이스는 타입만!)
-// 또한 type으로 인터페이스를 유니온 타입으로 결합할 수 있음
-// 반대로 인터페이스로 결합하려면 상속받아야 해서 번거로움
-
-// 4. 형 변환
-// 타입스크립트가 감지하지 못하는 '타입의 변화'를 명시적으로 표현해주는 것
-
-// index.html에 아래 등장하는 element들이 추가된 상태
-const paragraph1 = document.querySelector('p');
-// const paragraph: HTMLParagraphElement | null -> null 일 수도 있다고 typescript도 알고 있음
-// !를 표현식 뒤에 붙이면 null이 아니라고 선언 가능
-
-const paragraph2 = document.getElementById('message-output')!;
-// const paragraph2: HTMLElement -> 그냥 단순한 element로 추측할 뿐
-// 정확히 어떤 element인지 탐지 불가 (typescript는 HTML을 정확하게 들여다보지 않음)
-
-const userInputElement = document.getElementById('user-input')!;
-// userInputElement.value = 'Hi there!'; // 단순히 HTMLElement가 너무 포괄적이라
-// value 속성을 못가지는 element일 수 있어서 에러 발생
-
-// 2가지 방법으로 타입 캐스팅 가능
-// 1. 변환하고자 하는 요소 앞에 <타입>을 추가
-const userInputElement1 = <HTMLInputElement>document.getElementById('user-input')!;
-userInputElement1.value = 'Hi there!';
-// 리액트 문법과 충돌 가능
-
-// 2. as + 타입을 뒤에 붙임
-const userInputElement2 = document.getElementById('user-input')! as HTMLInputElement;
-userInputElement2.value = 'Hi there!';
-
-// 2가지 방법중 하나를 골라 통일하여 설정
-
-// 5. 인덱스 속성(타입)
-// 객체가 지닐 수 있는 속성을 유연하게 나타내고 싶을 때
-// 여러 입력창에서 어떤 결과인지를 확인하기 위한
-// 입력에 따른 유효성 검사를 위해 에러 메시지를 다양하게 보유하고 싶을 떄
-
-
-interface ErrorContainer { // { email: 'Not a valid email!', username: 'Must start with a capital character!'}
-  // 실제 객체는 for in ... 구문을 활용하여 사용
-  [prop: string]: string; // 모든 키값과 밸류값이  string 이어야 함
-  // key 또는 prop 처럼 마음대로 식별자를 사용해도 됨
-}
-
-const errorBag: ErrorContainer = {
-  1: 'Not a valid email!',
-  2: 'Must start with a capital character!'
-};
-
-// 프로퍼티의 키값과 밸류값의 타입을 한번에 지정할 수 있는 장점?
-
-// 6. 함수 오버로드
-type Combinable1 = string | number;
-type Numeric1 = number | boolean;
-
-type Universal1 = Combinable1 & Numeric1;
-
-// 함수 오버로드 -> 각각 줄 끝에 세미콜론 필요
-function add1(a: string, b: string): string;
-function add1(a: string, b: number): string;
-function add1(a: number, b: string): string;
-function add1(a: number, b: number): number;
-function add1(a: Combinable1, b: Combinable1) {
-  if (typeof a === 'string' || typeof b === 'string') { // 타입 가드 구문
-    return a.toString() + b.toString();
+class DataStorage1 {
+  // private data: (string | number | boolean)[]  = []; // 문자열, 숫자, bool값이 혼합된 배열
+  private data: string[] | number[] | boolean[] = []; // 3중 1개의 단일 원소 배열
+  
+  // 에러 발생 -> string[] 일 수도 있는데 number 추가될 수도 있어서
+  // addItem(item: string | number | boolean) {
+  //   this.data.push(item);
+  // }
+  
+  // 에러 발생
+  // removeItem(item: string | number | boolean) {
+  //   if (this.data.indexOf(item) === -1) return; // 객체에 대해서는 작동 X
+  //   this.data.splice(this.data.indexOf(item), 1); // 객체의 경우 인덱스 못찾아서 -1 출력
+  // }
+  
+  getItems() {
+    return [...this.data];
   }
-  return a + b;
 }
 
-// const result =  add('ko', 'rea');
-// result.split(' ');
-// 실행 가능한 코드이지만 에러 발생 -> string | number 타입에 array 메서드 사용할 수 없음
+// 유니언 타입은 함수를 호출할 때마다 다른 타입을 지정할 때 쓴다
+// 즉, 매개변수 타입이 바뀔수 있어도 상관 없을 때
 
-// 타입 캐스팅 활용할 수 있으나, 코드가 길어짐
-// 함수 오버로드 사용 -> add1 위에 같은 이름의 타입 설정만 다른 함수를 생성
-
-// 함수 오버로드를 통해 매개변수의 타입이 다른 다양한 경우에 대비할 수 있다
-
-// 7. 옵셔널 체이닝(?.)
-// 좌항의 피연산자가 null 또는 undefined인 경우 undefined를 반환
-const fetchedUserData = {
-  id: 'u1',
-  name: 'steve',
-  // job: { title: 'CEO', description: 'My own company' }
-};
-
-// console.log(fetchedUserData.job?.title); // job 프로퍼티가 없다고 에러 발생 (코드는 실행됨)
-// console.log(fetchedUserData.job && fetchedUserData.job.title); -> 이 방법으로 에러를 방지할 수 있으나
-// 객체에 대한 정보가 없을 때도 있음 -> 이 때 옵셔널 체이닝 연산자 ?.를 사용
-
-// 8. null 병합 연산자(&&)
-// 마찬가지로 타입스크립트가 null일지 미리 알 수 없음
-
-const userInput = ''; // 빈 문자열이 필요한데 falsy값이 되버림
-const storedData = userInput ?? 'DEFAULT'; // ''
-// const storedData = userInput || 'DEFAULT'; // 전통적인 방법으로 하면 DEFAULT
-console.log(storedData);
+// 제네릭 타입은 특정 타입을 고정하거나, 클래스에서 설정한 타입을 인스턴스가 따라가게 할 때 사용
