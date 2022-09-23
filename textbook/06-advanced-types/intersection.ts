@@ -11,7 +11,7 @@ type Employee = {
 // & 연산자로 이종 타입을 결합 -> 합집합
 // 원래 인터섹션의 사전적 의미는 교집합이나, 타입스크립트에서는 합집합으로 쓰임
 // 각각 따로 만들기 번거로우니 인터섹션 타입으로 결합
-type ElevatedEmployee = Admin & Employee;
+type ElevatedEmployee = Admin & Employee; // type ElevatedEmployee = Admin & Employee
 
 const e1: ElevatedEmployee = {
   name: 'Hank',
@@ -42,4 +42,5 @@ const e2: ElevatedEmployee = {
 type Combinable = string | number;
 type Numeric = number | boolean;
 
-type Universal = Combinable & Numeric;
+type Universal = Combinable & Numeric; // type Universal = number
+// number (공통 타입) 로 통일됨 -> ㄹㅇ 교집합

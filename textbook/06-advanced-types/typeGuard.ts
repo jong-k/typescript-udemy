@@ -46,7 +46,8 @@ const e2: ElevatedEmployee = {
 type Combinable = string | number;
 type Numeric = number | boolean;
 
-type Universal = Combinable & Numeric;
+type Universal = Combinable & Numeric; // type Universal = number
+// number (공통 타입) 로 통일됨 -> ㄹㅇ 교집합
 
 // 2. 타입 가드
 function add(a: Combinable, b: Combinable) {
