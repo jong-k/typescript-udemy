@@ -1,4 +1,5 @@
 //  7. 제네릭 유틸리티 타입
+// 제네릭 유틸리티 타입은 제네릭 괄호 바로 앞에 붙여준다
 // 7-1. Partial 타입 : T의 모든 프로퍼티를 옵셔널하게 만듬
 interface CourseGoal { // 이 인터페이스는 아래에서 Partial 타입이 되어 옵셔널하게 됨
   title: string;
